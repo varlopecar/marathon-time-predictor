@@ -10,6 +10,29 @@ A machine learning API that predicts marathon finish times based on training dat
 - **Model Insights**: Feature importance and cross-validation results
 - **Production Ready**: Health checks, error handling, and proper logging
 
+## 🌐 Live API
+
+**Production URL:** https://marathon-time-predictor.osc-fr1.scalingo.io
+
+**Quick Test:**
+
+```bash
+# Health check
+curl https://marathon-time-predictor.osc-fr1.scalingo.io/health
+
+# Make a prediction
+curl -X POST https://marathon-time-predictor.osc-fr1.scalingo.io/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "distance_km": 42.2,
+    "elevation_gain_m": 100,
+    "mean_km_per_week": 50,
+    "mean_training_days_per_week": 4,
+    "gender": "male",
+    "level": 2
+  }'
+```
+
 ## 📊 Model Performance
 
 - **R² Score**: ~0.85 (85% variance explained)
@@ -60,13 +83,21 @@ The API will be available at `http://localhost:8000`
 #### Health Check
 
 ```bash
-GET /health
+# Production
+GET https://marathon-time-predictor.osc-fr1.scalingo.io/health
+
+# Local development
+GET http://localhost:8000/health
 ```
 
 #### Make Prediction
 
 ```bash
-POST /predict
+# Production
+POST https://marathon-time-predictor.osc-fr1.scalingo.io/predict
+
+# Local development
+POST http://localhost:8000/predict
 ```
 
 **Request Body:**
@@ -144,6 +175,23 @@ result = model.predict_time(user_data)
 print(f"Predicted time: {result['prediction']['time_string']}")
 ```
 
+## 🚀 Deployment
+
+This API is deployed on **Scalingo** and is available at:
+https://marathon-time-predictor.osc-fr1.scalingo.io
+
+### Deployment Features:
+
+- ✅ **Production Ready**: HTTPS, health checks, error handling
+- ✅ **Auto-scaling**: Handles traffic spikes automatically
+- ✅ **Model Optimization**: Uses smaller deployment model (3.8MB) for faster startup
+- ✅ **Monitoring**: Built-in logging and performance monitoring
+
+### Local vs Production:
+
+- **Local**: `http://localhost:8000`
+- **Production**: `https://marathon-time-predictor.osc-fr1.scalingo.io`
+
 ## 🧪 Testing
 
 Run the test suite:
@@ -164,7 +212,10 @@ python test_simple_api.py
 marathon-time-predictor/
 ├── marathon_prediction.py    # Core ML model and prediction logic
 ├── marathon_api.py          # FastAPI web service
+├── startup.py               # Application startup script
 ├── requirements.txt         # Python dependencies
+├── Procfile                 # Scalingo deployment configuration
+├── scalingo.json           # Scalingo app configuration
 ├── README.md               # This file
 ├── CONTRIBUTING.md         # Contribution guidelines
 ├── LICENSE                 # Project license

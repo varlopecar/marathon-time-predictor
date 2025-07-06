@@ -6,6 +6,14 @@ The Marathon Time Predictor API is a RESTful web service that provides marathon 
 
 ## Base URL
 
+**Production (Live):**
+
+```
+https://marathon-time-predictor.osc-fr1.scalingo.io
+```
+
+**Local Development:**
+
 ```
 http://localhost:8000
 ```
@@ -28,6 +36,8 @@ Returns basic information about the API.
 {
   "message": "Marathon Time Prediction API",
   "version": "1.0.0",
+  "status": "running",
+  "model_ready": "true",
   "endpoints": "predict: POST /predict - Get marathon time prediction with model info; health: GET /health - Health check"
 }
 ```
@@ -35,6 +45,10 @@ Returns basic information about the API.
 #### Example
 
 ```bash
+# Production
+curl -X GET "https://marathon-time-predictor.osc-fr1.scalingo.io/"
+
+# Local development
 curl -X GET "http://localhost:8000/"
 ```
 
@@ -63,6 +77,10 @@ Returns the health status of the API and model.
 #### Example
 
 ```bash
+# Production
+curl -X GET "https://marathon-time-predictor.osc-fr1.scalingo.io/health"
+
+# Local development
 curl -X GET "http://localhost:8000/health"
 ```
 
@@ -163,6 +181,14 @@ Predicts marathon finish time based on input parameters.
 }
 ```
 
+**Error (503)**
+
+```json
+{
+  "detail": "Model is not ready. Please try again in a few moments."
+}
+```
+
 #### Response Fields
 
 **Prediction Object**
@@ -199,6 +225,19 @@ Predicts marathon finish time based on input parameters.
 **Basic Prediction**
 
 ```bash
+# Production
+curl -X POST "https://marathon-time-predictor.osc-fr1.scalingo.io/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "distance_km": 42.2,
+    "elevation_gain_m": 200,
+    "mean_km_per_week": 60,
+    "mean_training_days_per_week": 5,
+    "gender": "male",
+    "level": 2
+  }'
+
+# Local development
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
   -d '{
@@ -211,21 +250,6 @@ curl -X POST "http://localhost:8000/predict" \
   }'
 ```
 
-**Half Marathon Prediction**
-
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "distance_km": 21.1,
-    "elevation_gain_m": 100,
-    "mean_km_per_week": 40,
-    "mean_training_days_per_week": 4,
-    "gender": "female",
-    "level": 1
-  }'
-```
-
 ## Error Codes
 
 | Status Code | Description                                   |
@@ -234,6 +258,7 @@ curl -X POST "http://localhost:8000/predict" \
 | 400         | Bad Request - Invalid input parameters        |
 | 422         | Unprocessable Entity - Validation error       |
 | 500         | Internal Server Error - Model or server error |
+| 503         | Service Unavailable - Model not ready         |
 
 ## Rate Limiting
 
