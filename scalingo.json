@@ -1,0 +1,47 @@
+{
+  "name": "marathon-time-predictor",
+  "description": "Marathon Time Prediction API - ML-powered race time predictions",
+  "repository": "https://github.com/varlopecar/marathon-time-predictor",
+  "logo": "https://github.com/varlopecar.png",
+  "keywords": [
+    "python",
+    "fastapi",
+    "machine-learning",
+    "marathon",
+    "prediction"
+  ],
+  "env": {
+    "PYTHON_VERSION": {
+      "description": "Python version to use",
+      "value": "3.11"
+    },
+    "PORT": {
+      "description": "Port for the application",
+      "value": "8000"
+    },
+    "HOST": {
+      "description": "Host for the application",
+      "value": "0.0.0.0"
+    },
+    "ENVIRONMENT": {
+      "description": "Application environment",
+      "value": "production"
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level",
+      "value": "info"
+    }
+  },
+  "formation": {
+    "web": {
+      "amount": 1,
+      "size": "S"
+    }
+  },
+  "addons": [],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}

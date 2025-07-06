@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  # Development service
+  marathon-predictor-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    command: python marathon_api.py
+    profiles:
+      - dev
+
+  # Production service
+  marathon-predictor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    profiles:
+      - prod
+
+  # Testing service
+  marathon-predictor-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    command: pytest tests/ -v --cov=marathon_prediction --cov-report=term-missing
+    profiles:
+      - test
+
+  # API documentation service (optional)
+  docs:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html
+    profiles:
+      - docs
+
+networks:
+  default:
+    name: marathon-predictor-network

@@ -1,0 +1,42 @@
+{
+  "name": "Marathon Time Predictor",
+  "description": "ML-powered API for predicting marathon finish times",
+  "repository": "https://github.com/yourusername/marathon-time-predictor",
+  "logo": "https://your-logo-url.com/logo.png",
+  "keywords": [
+    "python",
+    "fastapi",
+    "machine-learning",
+    "marathon",
+    "prediction"
+  ],
+  "env": {
+    "PYTHON_VERSION": {
+      "description": "Python version to use",
+      "value": "3.11"
+    },
+    "ENVIRONMENT": {
+      "description": "Application environment",
+      "value": "production"
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level",
+      "value": "info"
+    }
+  },
+  "formation": {
+    "web": {
+      "amount": 1,
+      "size": "S"
+    }
+  },
+  "addons": [],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "python -c \"from marathon_prediction import MarathonPrediction; model = MarathonPrediction(); model.train_model() if not model.load_model() else None\""
+  }
+}
