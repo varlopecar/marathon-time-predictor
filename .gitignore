@@ -173,6 +173,7 @@ Desktop.ini
 
 # Project specific
 *.pkl
+!deployment_model.pkl
 *.csv
 !requirements*.txt
 !test_*.csv
