@@ -14,21 +14,50 @@ import uvicorn
 from marathon_prediction import MarathonPrediction
 import os
 from contextlib import asynccontextmanager
+import logging
 
-# Import the global model instance from startup
-try:
-    from startup import model_instance as model
-    if model is None:
-        model = MarathonPrediction()
-except ImportError:
-    # Fallback if startup module is not available
-    model = MarathonPrediction()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Global model instance
+model = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan - model is already initialized in startup.py."""
-    print("FastAPI application starting - model should be ready from startup.py")
+    """Initialize the model when the application starts."""
+    global model
+
+    try:
+        logger.info("Starting model initialization...")
+
+        # Try deployment model first (smaller, faster to load)
+        deployment_model_path = "deployment_model.pkl"
+        if os.path.exists(deployment_model_path):
+            logger.info(
+                "Found deployment model, using it for faster startup...")
+            model = MarathonPrediction(model_path=deployment_model_path)
+        else:
+            logger.info(
+                "No deployment model found, using default model path...")
+            model = MarathonPrediction()
+
+        # Try to load existing model
+        if model.load_model():
+            logger.info("Model loaded successfully from disk")
+        else:
+            logger.info("No saved model found, training new model...")
+            # Train new model
+            metrics = model.train_model()
+            logger.info(f"Model trained successfully with metrics: {metrics}")
+
+        logger.info("Model initialization completed successfully")
+    except Exception as e:
+        logger.error(f"Error during model initialization: {e}")
+        # Continue without model - endpoints will handle this gracefully
+        model = MarathonPrediction()
+
     yield
 
 # Initialize FastAPI app with lifespan
