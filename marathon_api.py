@@ -18,6 +18,8 @@ from contextlib import asynccontextmanager
 # Import the global model instance from startup
 try:
     from startup import model_instance as model
+    if model is None:
+        model = MarathonPrediction()
 except ImportError:
     # Fallback if startup module is not available
     model = MarathonPrediction()
@@ -74,11 +76,17 @@ class HealthResponse(BaseModel):
 @app.get("/", response_model=Dict[str, str])
 async def root():
     """Root endpoint with API information."""
+    # Ensure model is not None
+    if model is None:
+        model_ready = False
+    else:
+        model_ready = model.is_trained and model.model is not None
+
     return {
         "message": "Marathon Time Prediction API",
         "version": "1.0.0",
         "status": "running",
-        "model_ready": model.is_trained and model.model is not None,
+        "model_ready": model_ready,
         "endpoints": "predict: POST /predict - Get marathon time prediction with model info; health: GET /health - Health check"
     }
 
@@ -88,7 +96,7 @@ async def health_check():
     """Health check endpoint."""
     try:
         # Check if model is loaded and working
-        if model.is_trained and model.model is not None:
+        if model is not None and model.is_trained and model.model is not None:
             # Simple health check without making a prediction to avoid delays
             model_working = True
         else:
@@ -96,7 +104,7 @@ async def health_check():
 
         return HealthResponse(
             status="healthy" if model_working else "degraded",
-            model_loaded=model.is_trained,
+            model_loaded=model.is_trained if model is not None else False,
             model_type="Random Forest"
         )
     except Exception as e:
@@ -118,7 +126,7 @@ async def predict_marathon_time(request: PredictionRequest):
     """
     try:
         # Check if model is loaded
-        if not model.is_trained or model.model is None:
+        if model is None or not model.is_trained or model.model is None:
             raise HTTPException(
                 status_code=503,
                 detail="Model is not ready. Please try again in a few moments."
