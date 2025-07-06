@@ -15,24 +15,18 @@ from marathon_prediction import MarathonPrediction
 import os
 from contextlib import asynccontextmanager
 
-
-# Initialize the prediction model
-model = MarathonPrediction()
+# Import the global model instance from startup
+try:
+    from startup import model_instance as model
+except ImportError:
+    # Fallback if startup module is not available
+    model = MarathonPrediction()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load the trained model when the application starts."""
-    try:
-        print("Starting model initialization...")
-        if not model.load_model():
-            print("No saved model found, training new model...")
-            # If no saved model exists, train a new one
-            model.train_model()
-        print("Model initialization completed successfully")
-    except Exception as e:
-        print(f"Error during model initialization: {e}")
-        # Continue without model - endpoints will handle this gracefully
+    """Application lifespan - model is already initialized in startup.py."""
+    print("FastAPI application starting - model should be ready from startup.py")
     yield
 
 # Initialize FastAPI app with lifespan
@@ -126,10 +120,10 @@ async def predict_marathon_time(request: PredictionRequest):
         # Check if model is loaded
         if not model.is_trained or model.model is None:
             raise HTTPException(
-                status_code=503, 
+                status_code=503,
                 detail="Model is not ready. Please try again in a few moments."
             )
-        
+
         # Convert request to dictionary
         user_data = {
             'distance_km': request.distance_km,
