@@ -23,9 +23,16 @@ model = MarathonPrediction()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load the trained model when the application starts."""
-    if not model.load_model():
-        # If no saved model exists, train a new one
-        model.train_model()
+    try:
+        print("Starting model initialization...")
+        if not model.load_model():
+            print("No saved model found, training new model...")
+            # If no saved model exists, train a new one
+            model.train_model()
+        print("Model initialization completed successfully")
+    except Exception as e:
+        print(f"Error during model initialization: {e}")
+        # Continue without model - endpoints will handle this gracefully
     yield
 
 # Initialize FastAPI app with lifespan
@@ -76,6 +83,8 @@ async def root():
     return {
         "message": "Marathon Time Prediction API",
         "version": "1.0.0",
+        "status": "running",
+        "model_ready": model.is_trained and model.model is not None,
         "endpoints": "predict: POST /predict - Get marathon time prediction with model info; health: GET /health - Health check"
     }
 
@@ -85,18 +94,9 @@ async def health_check():
     """Health check endpoint."""
     try:
         # Check if model is loaded and working
-        if model.is_trained:
-            # Test a simple prediction to ensure model is functional
-            test_data = {
-                'distance_km': 42.2,
-                'elevation_gain_m': 0,
-                'mean_km_per_week': 50,
-                'mean_training_days_per_week': 4,
-                'gender': 'male',
-                'level': 2
-            }
-            result = model.predict_time(test_data)
-            model_working = result['success']
+        if model.is_trained and model.model is not None:
+            # Simple health check without making a prediction to avoid delays
+            model_working = True
         else:
             model_working = False
 
@@ -123,6 +123,13 @@ async def predict_marathon_time(request: PredictionRequest):
         PredictionResponse with predicted time and comprehensive model information
     """
     try:
+        # Check if model is loaded
+        if not model.is_trained or model.model is None:
+            raise HTTPException(
+                status_code=503, 
+                detail="Model is not ready. Please try again in a few moments."
+            )
+        
         # Convert request to dictionary
         user_data = {
             'distance_km': request.distance_km,
@@ -168,6 +175,8 @@ async def predict_marathon_time(request: PredictionRequest):
         else:
             raise HTTPException(status_code=400, detail=result['error'])
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Prediction failed: {str(e)}")

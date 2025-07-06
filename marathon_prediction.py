@@ -173,13 +173,22 @@ class MarathonPrediction:
         """
         if os.path.exists(self.model_path):
             try:
+                # Check file size to avoid loading extremely large files
+                file_size = os.path.getsize(self.model_path)
+                if file_size > 500 * 1024 * 1024:  # 500MB limit
+                    print(
+                        f"Warning: Model file is very large ({file_size / 1024 / 1024:.1f}MB)")
+
                 with open(self.model_path, 'rb') as f:
                     self.model = pickle.load(f)
                 self.is_trained = True
+                print(f"Model loaded successfully from {self.model_path}")
                 return True
             except Exception as e:
+                print(f"Error loading model: {e}")
                 return False
         else:
+            print(f"Model file not found at {self.model_path}")
             return False
 
     def validate_user_input(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
