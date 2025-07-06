@@ -78,9 +78,10 @@ async def root():
     """Root endpoint with API information."""
     # Ensure model is not None
     if model is None:
-        model_ready = False
+        model_ready = "false"
     else:
-        model_ready = model.is_trained and model.model is not None
+        model_ready = "true" if (
+            model.is_trained and model.model is not None) else "false"
 
     return {
         "message": "Marathon Time Prediction API",
