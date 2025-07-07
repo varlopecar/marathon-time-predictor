@@ -311,19 +311,19 @@ class MarathonPrediction:
                 'success': False
             }
 
-        # Prepare features for prediction
-        features = np.array([[
+        # Prepare features for prediction with proper feature names
+        features_df = pd.DataFrame([[
             validation['processed_data']['distance_m'],
             validation['processed_data']['elevation_gain_m'],
             validation['processed_data']['mean_km_per_week'],
             validation['processed_data']['mean_training_days_per_week'],
             validation['processed_data']['gender_binary'],
             validation['processed_data']['level']
-        ]])
+        ]], columns=self.feature_names)
 
         # Make prediction
         try:
-            predicted_seconds = self.model.predict(features)[0]
+            predicted_seconds = self.model.predict(features_df)[0]
 
             # Convert to different time formats
             predicted_minutes = predicted_seconds / 60
@@ -419,7 +419,7 @@ class MarathonPrediction:
                                            bins=[0, 30, 50, 70, 100, 200], 
                                            labels=['0-30', '30-50', '50-70', '70-100', '100+'])
             
-            training_performance = data.groupby('training_group')['time_hours'].agg(['mean', 'std', 'count']).to_dict()
+            training_performance = data.groupby('training_group', observed=False)['time_hours'].agg(['mean', 'std', 'count']).to_dict()
             
             data_insights = {
                 'dataset_size': len(data),
