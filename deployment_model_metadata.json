@@ -1,0 +1,36 @@
+{
+  "model_type": "Random Forest",
+  "features": [
+    "distance_m",
+    "elevation_gain_m",
+    "mean_km_per_week",
+    "mean_training_days_per_week",
+    "gender_binary",
+    "level"
+  ],
+  "training_samples": 30110,
+  "test_samples": 7528,
+  "performance": {
+    "mae_seconds": 526.9955169842113,
+    "mae_minutes": 8.783258616403522,
+    "mse": 4427663.072702145,
+    "rmse_seconds": 2104.201290918277,
+    "rmse_minutes": 35.07002151530462,
+    "r2_score": 0.682168988706126,
+    "coefficient_of_determination": 0.682168988706126,
+    "cv_r2_mean": 0.0020697022000719435,
+    "cv_r2_std": 0.45727492640087203,
+    "cv_mae_mean": 923.5309834625723,
+    "cv_mae_std": 861.6793178734042
+  },
+  "feature_importance": {
+    "distance_m": 0.5543818365925616,
+    "elevation_gain_m": 0.35680116507665416,
+    "mean_km_per_week": 0.0380323180603678,
+    "mean_training_days_per_week": 0.032603794353055764,
+    "gender_binary": 0.013288465821836263,
+    "level": 0.0048924200955244995
+  },
+  "model_size_mb": 50.66484451293945,
+  "compression_ratio": 5.114043535041451
+}

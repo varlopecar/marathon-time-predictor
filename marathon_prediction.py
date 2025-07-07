@@ -60,12 +60,13 @@ class MarathonPrediction:
 
         return data
 
-    def train_model(self, data_path: str = "clean_dataset.csv") -> Dict[str, float]:
+    def train_model(self, data_path: str = "clean_dataset.csv", save_model: bool = True) -> Dict[str, float]:
         """
         Train the Random Forest model and save it.
 
         Args:
             data_path: Path to the training data
+            save_model: Whether to save the trained model to disk
 
         Returns:
             Dictionary with training metrics
@@ -95,8 +96,9 @@ class MarathonPrediction:
         # Perform cross-validation
         cv_results = self.perform_cross_validation()
 
-        # Save model
-        self.save_model()
+        # Save model (only if requested)
+        if save_model:
+            self.save_model()
 
         self.is_trained = True
 
@@ -161,8 +163,15 @@ class MarathonPrediction:
     def save_model(self):
         """Save the trained model to disk."""
         if self.model is not None:
-            with open(self.model_path, 'wb') as f:
-                pickle.dump(self.model, f)
+            try:
+                import joblib
+                joblib.dump(self.model, self.model_path, compress=3)
+                print(f"Model saved successfully with joblib to {self.model_path}")
+            except ImportError:
+                # Fallback to pickle if joblib is not available
+                with open(self.model_path, 'wb') as f:
+                    pickle.dump(self.model, f)
+                print(f"Model saved successfully with pickle to {self.model_path}")
 
     def load_model(self) -> bool:
         """
@@ -179,10 +188,18 @@ class MarathonPrediction:
                     print(
                         f"Warning: Model file is very large ({file_size / 1024 / 1024:.1f}MB)")
 
-                with open(self.model_path, 'rb') as f:
-                    self.model = pickle.load(f)
+                # Try joblib first (for compressed models), then pickle
+                try:
+                    import joblib
+                    self.model = joblib.load(self.model_path)
+                    print(f"Model loaded successfully with joblib from {self.model_path}")
+                except:
+                    # Fallback to pickle
+                    with open(self.model_path, 'rb') as f:
+                        self.model = pickle.load(f)
+                    print(f"Model loaded successfully with pickle from {self.model_path}")
+                
                 self.is_trained = True
-                print(f"Model loaded successfully from {self.model_path}")
                 return True
             except Exception as e:
                 print(f"Error loading model: {e}")
@@ -359,6 +376,169 @@ class MarathonPrediction:
 
         importance = self.model.feature_importances_
         return dict(zip(self.feature_names, importance))
+
+    def get_comprehensive_metrics(self, include_cv: bool = False) -> Dict[str, Any]:
+        """
+        Get comprehensive model metrics and data insights.
+
+        Args:
+            include_cv: Whether to include cross-validation results (can be slow)
+
+        Returns:
+            Dictionary with model metrics and data insights
+        """
+        if not self.is_trained or self.model is None:
+            return {}
+
+        # Get feature importance
+        feature_importance = self.get_feature_importance()
+        
+        # Get cross-validation results (only if requested)
+        cv_results = None
+        if include_cv:
+            try:
+                cv_results = self.perform_cross_validation()
+            except:
+                cv_results = None
+
+        # Load data for insights
+        try:
+            data = self.load_and_prepare_data()
+            
+            # Calculate correlations
+            correlations = data[['distance_m', 'elevation_gain_m', 'mean_km_per_week', 
+                               'mean_training_days_per_week', 'gender_binary', 'level', 'elapsed_time_s']].corr()['elapsed_time_s']
+            
+            # Gender analysis
+            male_data = data[data['gender_binary'] == 0]
+            female_data = data[data['gender_binary'] == 1]
+            
+            # Training volume analysis
+            data['time_hours'] = data['elapsed_time_s'] / 3600
+            data['training_group'] = pd.cut(data['mean_km_per_week'], 
+                                           bins=[0, 30, 50, 70, 100, 200], 
+                                           labels=['0-30', '30-50', '50-70', '70-100', '100+'])
+            
+            training_performance = data.groupby('training_group')['time_hours'].agg(['mean', 'std', 'count']).to_dict()
+            
+            data_insights = {
+                'dataset_size': len(data),
+                'gender_distribution': {
+                    'male_count': len(male_data),
+                    'female_count': len(female_data),
+                    'male_percentage': len(male_data) / len(data) * 100,
+                    'female_percentage': len(female_data) / len(data) * 100
+                },
+                'feature_correlations': {
+                    'distance_m': correlations.get('distance_m', 0),
+                    'elevation_gain_m': correlations.get('elevation_gain_m', 0),
+                    'mean_km_per_week': correlations.get('mean_km_per_week', 0),
+                    'mean_training_days_per_week': correlations.get('mean_training_days_per_week', 0),
+                    'gender_binary': correlations.get('gender_binary', 0),
+                    'level': correlations.get('level', 0)
+                },
+                'training_volume_analysis': {
+                    'mean_km_per_week': data['mean_km_per_week'].mean(),
+                    'std_km_per_week': data['mean_km_per_week'].std(),
+                    'min_km_per_week': data['mean_km_per_week'].min(),
+                    'max_km_per_week': data['mean_km_per_week'].max(),
+                    'training_performance_by_group': training_performance
+                },
+                'gender_performance': {
+                    'male_mean_time_hours': male_data['elapsed_time_s'].mean() / 3600 if len(male_data) > 0 else 0,
+                    'female_mean_time_hours': female_data['elapsed_time_s'].mean() / 3600 if len(female_data) > 0 else 0,
+                    'male_mean_km_per_week': male_data['mean_km_per_week'].mean() if len(male_data) > 0 else 0,
+                    'female_mean_km_per_week': female_data['mean_km_per_week'].mean() if len(female_data) > 0 else 0
+                },
+                'data_quality_warnings': []
+            }
+            
+            # Add warnings for data quality issues
+            training_correlation = correlations.get('mean_km_per_week', 0)
+            if training_correlation > 0:
+                data_insights['data_quality_warnings'].append(
+                    f"Warning: Positive correlation ({training_correlation:.3f}) between training volume and finish time suggests data quality issues"
+                )
+            
+            gender_correlation = correlations.get('gender_binary', 0)
+            if abs(gender_correlation) < 0.01:
+                data_insights['data_quality_warnings'].append(
+                    f"Warning: Gender has minimal correlation ({gender_correlation:.3f}) with finish time"
+                )
+                
+        except Exception as e:
+            data_insights = {
+                'error': f"Could not generate data insights: {str(e)}"
+            }
+
+        # Get comprehensive test set performance metrics (always available)
+        try:
+            # Load data and get test set performance
+            data = self.load_and_prepare_data()
+            X = data[self.feature_names]
+            y = data['elapsed_time_s']
+            
+            # Use the same train/test split as during training
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+            
+            # Get predictions on test set
+            y_pred = self.model.predict(X_test)
+            
+            # Calculate comprehensive test set metrics
+            from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+            import numpy as np
+            
+            test_mae = mean_absolute_error(y_test, y_pred)
+            test_mse = mean_squared_error(y_test, y_pred)
+            test_rmse = np.sqrt(test_mse)
+            test_r2 = r2_score(y_test, y_pred)
+            
+            # Calculate coefficient of determination (same as R² for linear models, but we'll show both)
+            # For Random Forest, R² is the coefficient of determination
+            coefficient_of_determination = test_r2
+            
+            test_performance = {
+                'r2_score': test_r2,
+                'coefficient_of_determination': coefficient_of_determination,
+                'mae_seconds': test_mae,
+                'mae_minutes': test_mae / 60,
+                'mse': test_mse,
+                'rmse_seconds': test_rmse,
+                'rmse_minutes': test_rmse / 60,
+                'test_samples': len(X_test)
+            }
+        except Exception as e:
+            test_performance = {
+                'r2_score': 'N/A',
+                'coefficient_of_determination': 'N/A',
+                'mae_seconds': 'N/A',
+                'mae_minutes': 'N/A',
+                'mse': 'N/A',
+                'rmse_seconds': 'N/A',
+                'rmse_minutes': 'N/A',
+                'test_samples': 'N/A'
+            }
+        
+        return {
+            'feature_importance': feature_importance,
+            'cross_validation': cv_results,
+            'data_insights': data_insights,
+            'model_performance_summary': {
+                'r2_score': test_performance['r2_score'],
+                'coefficient_of_determination': test_performance['coefficient_of_determination'],
+                'mae_seconds': test_performance['mae_seconds'],
+                'mae_minutes': test_performance['mae_minutes'],
+                'mse': test_performance['mse'],
+                'rmse_seconds': test_performance['rmse_seconds'],
+                'rmse_minutes': test_performance['rmse_minutes'],
+                'cv_folds': 5 if cv_results else 0,
+                'training_samples': '~30,000',
+                'test_samples': test_performance['test_samples']
+            }
+        }
 
 
 # Example usage and testing

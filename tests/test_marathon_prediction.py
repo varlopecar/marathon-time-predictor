@@ -8,6 +8,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 import tempfile
 import os
+import joblib
 
 from marathon_prediction import MarathonPrediction
 
@@ -158,7 +159,7 @@ class TestMarathonPrediction:
         assert result['is_valid'] is False
         assert len(result['errors']) > 0
 
-    @patch('pickle.dump')
+    @patch('joblib.dump')
     def test_save_model(self, mock_dump):
         """Test model saving."""
         # Mock a model
@@ -178,9 +179,8 @@ class TestMarathonPrediction:
         assert result is False
         assert self.model.is_trained is False
 
-    @patch('pickle.load')
-    @patch('builtins.open')
-    def test_load_model_success(self, mock_open, mock_load):
+    @patch('joblib.load')
+    def test_load_model_success(self, mock_load):
         """Test successful model loading."""
         # Mock file existence
         with patch('os.path.exists', return_value=True):
@@ -193,9 +193,8 @@ class TestMarathonPrediction:
             assert self.model.model == mock_model
             assert self.model.is_trained is True
 
-    @patch('pickle.load')
-    @patch('builtins.open')
-    def test_load_model_exception(self, mock_open, mock_load):
+    @patch('joblib.load')
+    def test_load_model_exception(self, mock_load):
         """Test model loading with exception."""
         with patch('os.path.exists', return_value=True):
             mock_load.side_effect = Exception("Load error")
@@ -296,16 +295,14 @@ class TestMarathonPrediction:
         assert 'Invalid input' in result['error']
 
     @patch('marathon_prediction.MarathonPrediction.load_model')
-    @patch('numpy.array')
-    def test_predict_time_success(self, mock_array, mock_load):
+    def test_predict_time_success(self, mock_load):
         """Test successful prediction."""
         mock_load.return_value = True
         self.model.is_trained = True
 
         # Mock model prediction
         mock_model = MagicMock()
-        mock_model.predict.return_value = np.array(
-            [14400])  # 4 hours in seconds
+        mock_model.predict.return_value = np.array([14400])  # 4 hours in seconds
         self.model.model = mock_model
 
         result = self.model.predict_time(self.sample_data)

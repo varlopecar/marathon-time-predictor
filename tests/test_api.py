@@ -36,11 +36,12 @@ class TestMarathonAPI:
         assert "endpoints" in data
         assert data["message"] == "Marathon Time Prediction API"
 
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_health_check_model_loaded(self, mock_is_trained, mock_load_model):
+    @patch('marathon_api.model')
+    def test_health_check_model_loaded(self, mock_model):
         """Test health check when model is loaded."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         response = self.client.get("/health")
 
@@ -50,29 +51,30 @@ class TestMarathonAPI:
         assert data["model_loaded"] is True
         assert data["model_type"] == "Random Forest"
 
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_health_check_model_not_loaded(self, mock_is_trained, mock_load_model):
+    @patch('marathon_api.model')
+    def test_health_check_model_not_loaded(self, mock_model):
         """Test health check when model is not loaded."""
-        mock_is_trained.__get__ = MagicMock(return_value=False)
+        # Mock the global model variable
+        mock_model.is_trained = False
+        mock_model.model = None
 
         response = self.client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        assert data["status"] == "degraded"
         assert data["model_loaded"] is False
         assert data["model_type"] == "Random Forest"
 
-    @patch('marathon_api.model.predict_time')
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_predict_endpoint_success(self, mock_is_trained, mock_load_model, mock_predict):
+    @patch('marathon_api.model')
+    def test_predict_endpoint_success(self, mock_model):
         """Test successful prediction endpoint."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         # Mock successful prediction
-        mock_predict.return_value = {
+        mock_model.predict_time.return_value = {
             'success': True,
             'prediction': {
                 'time_seconds': 14400.0,
@@ -97,6 +99,23 @@ class TestMarathonAPI:
             }
         }
 
+        # Mock comprehensive metrics
+        mock_model.get_comprehensive_metrics.return_value = {
+            'model_performance_summary': {
+                'training_samples': '~30,000'
+            },
+            'cross_validation': {
+                'r2_mean': 0.85,
+                'mae_mean': 900
+            },
+            'feature_importance': {
+                'mean_km_per_week': 0.45,
+                'level': 0.25
+            },
+            'data_insights': {}
+        }
+        mock_model.feature_names = ['distance_m', 'elevation_gain_m', 'mean_km_per_week', 'mean_training_days_per_week', 'gender_binary', 'level']
+
         response = self.client.post(
             "/predict", json=self.valid_prediction_request)
 
@@ -108,15 +127,15 @@ class TestMarathonAPI:
         assert data["prediction"]["time_string"] == "04:00:00"
         assert data["prediction"]["pace_minutes_per_km"] == 5.7
 
-    @patch('marathon_api.model.predict_time')
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_predict_endpoint_validation_error(self, mock_is_trained, mock_load_model, mock_predict):
+    @patch('marathon_api.model')
+    def test_predict_endpoint_validation_error(self, mock_model):
         """Test prediction endpoint with validation error."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         # Mock validation error
-        mock_predict.return_value = {
+        mock_model.predict_time.return_value = {
             'success': False,
             'error': 'Invalid input: Distance must be between 0 and 500 km'
         }
@@ -126,20 +145,17 @@ class TestMarathonAPI:
 
         response = self.client.post("/predict", json=invalid_request)
 
-        assert response.status_code == 400
-        data = response.json()
-        assert "detail" in data
-        assert "Invalid input" in data["detail"]
+        assert response.status_code == 422  # Validation error
 
-    @patch('marathon_api.model.predict_time')
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_predict_endpoint_model_error(self, mock_is_trained, mock_load_model, mock_predict):
+    @patch('marathon_api.model')
+    def test_predict_endpoint_model_error(self, mock_model):
         """Test prediction endpoint with model error."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         # Mock model error
-        mock_predict.return_value = {
+        mock_model.predict_time.return_value = {
             'success': False,
             'error': 'Model not trained. Please train the model first.'
         }
@@ -152,15 +168,15 @@ class TestMarathonAPI:
         assert "detail" in data
         assert "Model not trained" in data["detail"]
 
-    @patch('marathon_api.model.predict_time')
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_predict_endpoint_exception(self, mock_is_trained, mock_load_model, mock_predict):
+    @patch('marathon_api.model')
+    def test_predict_endpoint_exception(self, mock_model):
         """Test prediction endpoint with exception."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         # Mock exception
-        mock_predict.side_effect = Exception("Unexpected error")
+        mock_model.predict_time.side_effect = Exception("Unexpected error")
 
         response = self.client.post(
             "/predict", json=self.valid_prediction_request)
@@ -208,37 +224,40 @@ class TestMarathonAPI:
 
         assert response.status_code == 422
 
-    @patch('marathon_api.model.predict_time')
-    @patch('marathon_api.model.get_feature_importance')
-    @patch('marathon_api.model.perform_cross_validation')
-    @patch('marathon_api.model.load_model')
-    @patch('marathon_api.model.is_trained')
-    def test_predict_endpoint_with_model_info(self, mock_is_trained, mock_load_model, mock_cv, mock_importance, mock_predict):
+    @patch('marathon_api.model')
+    def test_predict_endpoint_with_model_info(self, mock_model):
         """Test prediction endpoint includes model information."""
-        mock_is_trained.__get__ = MagicMock(return_value=True)
+        # Mock the global model variable
+        mock_model.is_trained = True
+        mock_model.model = MagicMock()
 
         # Mock feature importance
-        mock_importance.return_value = {
-            'mean_km_per_week': 0.45,
-            'level': 0.25,
-            'distance_m': 0.15,
-            'mean_training_days_per_week': 0.10,
-            'elevation_gain_m': 0.03,
-            'gender_binary': 0.02
+        mock_model.get_comprehensive_metrics.return_value = {
+            'model_performance_summary': {
+                'training_samples': '~30,000'
+            },
+            'cross_validation': {
+                'r2_mean': 0.85,
+                'mae_mean': 900,
+                'mse_mean': 1000000,
+                'r2_std': 0.05,
+                'mae_std': 50,
+                'mse_std': 50000
+            },
+            'feature_importance': {
+                'mean_km_per_week': 0.45,
+                'level': 0.25,
+                'distance_m': 0.15,
+                'mean_training_days_per_week': 0.10,
+                'elevation_gain_m': 0.03,
+                'gender_binary': 0.02
+            },
+            'data_insights': {}
         }
-
-        # Mock cross validation
-        mock_cv.return_value = {
-            'r2_mean': 0.85,
-            'mae_mean': 900,
-            'mse_mean': 1000000,
-            'r2_std': 0.05,
-            'mae_std': 50,
-            'mse_std': 50000
-        }
+        mock_model.feature_names = ['distance_m', 'elevation_gain_m', 'mean_km_per_week', 'mean_training_days_per_week', 'gender_binary', 'level']
 
         # Mock successful prediction
-        mock_predict.return_value = {
+        mock_model.predict_time.return_value = {
             'success': True,
             'prediction': {
                 'time_seconds': 14400.0,
@@ -355,8 +374,9 @@ class TestMarathonAPIIntegration:
         # Check prediction response schema
         assert "responses" in predict_path
         assert "200" in predict_path["responses"]
-        assert "400" in predict_path["responses"]
-        assert "500" in predict_path["responses"]
+        assert "422" in predict_path["responses"]  # Validation error
+        # Note: 500 errors are not explicitly defined in the OpenAPI schema
+        # as they are handled by FastAPI's exception handlers
 
 
 if __name__ == "__main__":

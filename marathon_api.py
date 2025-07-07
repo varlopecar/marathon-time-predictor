@@ -110,6 +110,9 @@ class PredictionResponse(BaseModel):
     model_info: Optional[Dict[str, Any]] = None
     cross_validation: Optional[Dict[str, Any]] = None
     feature_importance: Optional[Dict[str, float]] = None
+    data_insights: Optional[Dict[str, Any]] = None
+
+    model_config = {"protected_namespaces": ()}
 
 
 class HealthResponse(BaseModel):
@@ -194,33 +197,24 @@ async def predict_marathon_time(request: PredictionRequest):
         result = model.predict_time(user_data)
 
         if result['success']:
-            # Get additional model information
-            feature_importance = model.get_feature_importance()
-
-            # Get cross-validation results
-            try:
-                cv_results = model.perform_cross_validation()
-            except:
-                cv_results = None
+            # Get comprehensive metrics and insights (without cross-validation for speed)
+            comprehensive_metrics = model.get_comprehensive_metrics(include_cv=False)
 
             # Enhanced model info
             enhanced_model_info = {
                 'model_type': 'Random Forest',
                 'features_used': model.feature_names,
-                'training_samples': '~30,000',
-                'model_performance': {
-                    'r2_score': cv_results['r2_mean'] if cv_results else 'N/A',
-                    'mae_minutes': cv_results['mae_mean'] / 60 if cv_results else 'N/A',
-                    'cross_validation_folds': 5
-                }
+                'training_samples': comprehensive_metrics.get('model_performance_summary', {}).get('training_samples', '~30,000'),
+                'model_performance': comprehensive_metrics.get('model_performance_summary', {})
             }
 
             return PredictionResponse(
                 success=True,
                 prediction=result['prediction'],
                 model_info=enhanced_model_info,
-                cross_validation=cv_results,
-                feature_importance=feature_importance
+                cross_validation=comprehensive_metrics.get('cross_validation'),
+                feature_importance=comprehensive_metrics.get('feature_importance'),
+                data_insights=comprehensive_metrics.get('data_insights')
             )
         else:
             raise HTTPException(status_code=400, detail=result['error'])
@@ -230,6 +224,10 @@ async def predict_marathon_time(request: PredictionRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
+
+
 
 if __name__ == "__main__":
     # Run the FastAPI application
