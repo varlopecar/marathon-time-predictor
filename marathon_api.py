@@ -7,9 +7,8 @@ Endpoints:
 - GET /health - Health check
 """
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 import uvicorn
@@ -70,7 +69,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware with more comprehensive configuration
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -81,43 +80,13 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8080",
-        # Add wildcard for development (remove in production)
-        "*"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
-    allow_headers=[
-        "Accept",
-        "Accept-Language",
-        "Content-Language",
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Origin",
-        "Access-Control-Request-Method",
-        "Access-Control-Request-Headers",
-        "Cache-Control",
-        "Pragma",
-        "User-Agent",
-        "Referer"
-    ],
-    expose_headers=["Content-Length", "Content-Type", "Access-Control-Allow-Origin"],
-    max_age=86400,  # Cache preflight requests for 24 hours
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
-# Manual CORS handler for OPTIONS requests
-@app.options("/{full_path:path}")
-async def options_handler(request: Request, full_path: str):
-    """Handle OPTIONS requests for CORS preflight."""
-    return JSONResponse(
-        content={},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD",
-            "Access-Control-Allow-Headers": "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, Pragma, User-Agent, Referer",
-            "Access-Control-Max-Age": "86400",
-        }
-    )
+
 
 # Pydantic models for request/response validation
 
@@ -166,18 +135,13 @@ async def root():
         model_ready = "true" if (
             model.is_trained and model.model is not None) else "false"
 
-    response_data = {
+    return {
         "message": "Marathon Time Prediction API",
         "version": "1.0.0",
         "status": "running",
         "model_ready": model_ready,
         "endpoints": "predict: POST /predict - Get marathon time prediction with model info; health: GET /health - Health check"
     }
-    
-    return JSONResponse(
-        content=response_data,
-        headers={"Access-Control-Allow-Origin": "*"}
-    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -191,26 +155,16 @@ async def health_check():
         else:
             model_working = False
 
-        response_data = HealthResponse(
+        return HealthResponse(
             status="healthy" if model_working else "degraded",
             model_loaded=model.is_trained if model is not None else False,
             model_type="Random Forest"
         )
-        
-        return JSONResponse(
-            content=response_data.model_dump(),
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
     except Exception as e:
-        response_data = HealthResponse(
+        return HealthResponse(
             status="unhealthy",
             model_loaded=False,
             model_type="Random Forest"
-        )
-        
-        return JSONResponse(
-            content=response_data.model_dump(),
-            headers={"Access-Control-Allow-Origin": "*"}
         )
 
 
@@ -256,18 +210,13 @@ async def predict_marathon_time(request: PredictionRequest):
                 'model_performance': comprehensive_metrics.get('model_performance_summary', {})
             }
 
-            response_data = PredictionResponse(
+            return PredictionResponse(
                 success=True,
                 prediction=result['prediction'],
                 model_info=enhanced_model_info,
                 cross_validation=comprehensive_metrics.get('cross_validation'),
                 feature_importance=comprehensive_metrics.get('feature_importance'),
                 data_insights=comprehensive_metrics.get('data_insights')
-            )
-            
-            return JSONResponse(
-                content=response_data.model_dump(),
-                headers={"Access-Control-Allow-Origin": "*"}
             )
         else:
             raise HTTPException(status_code=400, detail=result['error'])

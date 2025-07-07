@@ -284,7 +284,7 @@ Currently, there are no rate limits implemented. However, please be respectful o
 
 ### Performance Metrics
 
-- **R² Score**: ~0.85 (85% variance explained)
+- **R² Score**: ~0.68 (68% variance explained)
 - **Mean Absolute Error**: ~15 minutes
 - **Cross-validation**: 5-fold with consistent performance
 
@@ -359,6 +359,6 @@ The API provides automatic interactive documentation:
 
 For issues, questions, or feature requests:
 
-- **GitHub Issues**: [Create an issue](https://github.com/yourusername/marathon-time-predictor/issues)
-- **GitHub Discussions**: [Start a discussion](https://github.com/yourusername/marathon-time-predictor/discussions)
+- **GitHub Issues**: [Create an issue](https://github.com/varlopecar/marathon-time-predictor/issues)
+- **GitHub Discussions**: [Start a discussion](https://github.com/varlopecar/marathon-time-predictor/discussions)
 - **Email**: your.email@example.com

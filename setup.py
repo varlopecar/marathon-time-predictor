@@ -36,7 +36,7 @@ setup(
     description="A machine learning API for predicting marathon finish times",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/marathon-time-predictor",
+    url="https://github.com/varlopecar/marathon-time-predictor",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -74,8 +74,8 @@ setup(
     },
     keywords="marathon, prediction, machine learning, api, fastapi, scikit-learn",
     project_urls={
-        "Bug Reports": "https://github.com/yourusername/marathon-time-predictor/issues",
-        "Source": "https://github.com/yourusername/marathon-time-predictor",
-        "Documentation": "https://github.com/yourusername/marathon-time-predictor#readme",
+        "Bug Reports": "https://github.com/varlopecar/marathon-time-predictor/issues",
+        "Source": "https://github.com/varlopecar/marathon-time-predictor",
+        "Documentation": "https://github.com/varlopecar/marathon-time-predictor#readme",
     },
 )
